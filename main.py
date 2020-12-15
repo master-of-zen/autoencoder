@@ -2,6 +2,7 @@
 
 from distutils.spawn import find_executable
 import sys
+import re
 import vapoursynth as vs
 import argparse
 from pathlib import Path
@@ -25,12 +26,15 @@ def check_executables():
 
 
 def auto_crop():
-    pass
+    """
+    Getting information about how source can be cropped
+    """
 
 
 def get_media_info(video):
     """
     Getting media info from input video
+    Width, Height, Frames, Fps
     """
 
     # make script
@@ -49,8 +53,21 @@ def get_media_info(video):
 
     r = subprocess.run(f"vspipe get_media_info.py -i -".split(), capture_output=True)
 
-    print(r.stderr.decode())
-    print(r.stdout.decode())
+
+    if len(r.stderr.decode()) > 0:
+        print('Error in getting media info')
+        print(r.stderr.decode())
+        sys.exit()
+
+    output = r.stdout.decode()
+    # print(output)
+
+    w = int(re.findall("Width: ([0-9]+)", output)[0])
+    h = int(re.findall("Height: ([0-9]+)", output)[0])
+    frames = int(re.findall("Frames: ([0-9]+)", output)[0])
+    fps = int(re.findall("FPS: ([0-9]+)", output)[0])
+    depth = int(re.findall("Bits: ([0-9]+)", output)[0])
+    return w, h, frames, fps, depth
 
 def argparsing():
     """
@@ -71,4 +88,4 @@ if __name__ == "__main__":
     # Check initial requirements
     check_executables()
     args = argparsing()
-    get_media_info(args.get('input'))
+    print(get_media_info(args.get('input')))
