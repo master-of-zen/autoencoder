@@ -7,6 +7,7 @@ import vapoursynth as vs
 import argparse
 from pathlib import Path
 import subprocess
+import json
 
 """
 Autoencoder
@@ -79,6 +80,34 @@ def get_media_info(video):
     return w, h, frames, fps, depth
 
 
+def get_tracks_info(video):
+    cmd = f'mediainfo --Output=JSON {video.as_posix()}'
+    r = subprocess.run(cmd.split(), capture_output=True)
+
+    if len(r.stderr.decode()) > 0:
+            print('Error in getting track info')
+            print(r.stderr.decode())
+            sys.exit()
+
+    track_info = json.loads(r.stdout.decode())
+
+
+def extract():
+    pass
+
+
+def mux():
+    pass
+
+
+def encode():
+    pass
+
+
+def make_screenshots(video, frame_count, number_of_screenshots):
+    pass
+
+
 def argparsing():
     """
     Command line parsing and setting default variables
@@ -86,6 +115,7 @@ def argparsing():
     parser = argparse.ArgumentParser()
     io_group = parser.add_argument_group('Input and Output')
     io_group.add_argument('--input', '-i', type=Path, required=True, help='Input File')
+    io_group.add_argument('--screenshots', '-s', type=int, required=False, help='Number of screenshots to make')
     parsed = vars(parser.parse_args())
     return parsed
 
@@ -97,3 +127,5 @@ if __name__ == "__main__":
     args = argparsing()
     w, h , frames, fps, depth = get_media_info(args.get('input'))
     crops= auto_crop(args.get('input'))
+    get_tracks_info(args.get('input'))
+
