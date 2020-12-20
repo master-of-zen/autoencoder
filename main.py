@@ -12,6 +12,7 @@ import json
 """
 Autoencoder
 """
+
 def check_executables():
     """Checking is all required executables reachable"""
 
@@ -21,6 +22,10 @@ def check_executables():
 
     if not find_executable('vspipe'):
         print("Can't find vspipe")
+        sys.exit()
+
+    if not find_executable('mediainfo'):
+        print("Can't find mediainfo")
         sys.exit()
 
 
@@ -100,9 +105,18 @@ def mux():
     pass
 
 
-def encode():
-    pass
+def encode(video):
 
+    anime = ''
+
+    if anime:
+        anim = f"--deblock {deblock}"
+    else:
+        anim = ""
+
+    p2pformat = f'x264 --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output encoded.mkv - --ref --min-keyint {fps} --aq-mode 2 --aq-strength {aq} --qcomp {qcomp} {anim} --psy-rd {psy} --bframes 16`'
+
+    vs_pipe = f'vspipe --y4m {vspipe_file} - | x --crf {crf}'
 
 def make_screenshots(video, frame_count, number_of_screenshots):
     pass
