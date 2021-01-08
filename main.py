@@ -155,7 +155,36 @@ class Autoencoder:
         else:
             anim = ""
 
-        p2pformat = f'x264 --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output encoded.mkv - --ref --min-keyint {fps} --aq-mode 2 --aq-strength {aq} --qcomp {qcomp} {anim} --psy-rd {psy} --bframes 16`'
+        crf= 30
+        fps= 240
+        aq= 1
+        psy= 30
+
+        p2pformat = f'x264 --log-level error -  --preset superfast --demuxer y4m --output encoded.mkv'
+
+        #p2pformat = f'x264 --log-level error --preset superfast --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output encoded.mkv - --ref 6 --min-keyint {fps} --aq-mode 2 --aq-strength {aq} --qcomp 0.62 {anim} --psy-rd {psy} --bframes 16 '
+
+        script = "import vapoursynth as vs\n" + \
+        "core = vs.get_core()\n" + \
+        f"video = core.ffms2.Source('{self.input.as_posix()}')\n" + \
+        self.crop + '\n'\
+        "video.set_output()"
+
+
+
+        with open('settings.py', 'w') as w:
+            w.write(script)
+
+
+
+        vs_pipe = f'vspipe --y4m settings.py - '
+        enc =  f'{p2pformat} --crf {crf} '
+
+
+        print(':: Encoding..\r')
+        pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE,stderr=subprocess.PIPE )
+
+        en = Popen(enc.split(), stdin=pr.stdout).wait()
 
         vs_pipe = f'vspipe --y4m {vspipe_file} - | x --crf {crf}'
 
@@ -172,4 +201,11 @@ if __name__ == "__main__":
     encoder.get_media_info()
     encoder.auto_crop()
     encoder.get_tracks_info()
+    encoder.extract()
+    encoder.encode()
+    # TODO: Encode
 
+    # TODO: Detect desync
+    # TODO: Get screenshots
+
+    # TODO: Mux everything together
