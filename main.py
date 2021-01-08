@@ -56,14 +56,15 @@ class Autoencoder:
 
 
         _, _, crop_x, crop_y = [ int(x) for x in re.findall(r"crop=([\d]+):([\d]+):([\d]+):([\d]+)", output)[-1]]
-        crop_left = crop_x//2
-        crop_right = crop_x//2
-        crop_top = crop_y//2
-        crop_bottom = crop_y//2
+        crop_left = crop_x
+        crop_right = crop_x
+        crop_top = crop_y
+        crop_bottom = crop_y
         if crop_left + crop_right + crop_top + crop_bottom == 0:
             print(':: No crop required')
         else:
-            print(f":: Crop: {crop_left}:{crop_right}:{crop_top}:{crop_bottom}\nclip = core.std.Crop(clip, left={crop_left}, right={crop_right},top = {crop_top},bottom = {crop_bottom})\n")
+            print(f":: Autocrop Detected")
+            self.crop = f'video = core.std.Crop(video, left={crop_left}, right={crop_right},top = {crop_top},bottom = {crop_bottom})'
 
         return (crop_left, crop_right, crop_top, crop_bottom)
 
