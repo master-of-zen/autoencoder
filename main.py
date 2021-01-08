@@ -33,10 +33,16 @@ class Autoencoder:
         parser = argparse.ArgumentParser()
         io_group = parser.add_argument_group('Input and Output')
         io_group.add_argument('--input', '-i', type=Path, required=True, help='Input File')
-        io_group.add_argument('--ouput', '-o', type=Path, help="Output file name")
+        io_group.add_argument('--output', '-o', type=Path, help="Output file name")
         io_group.add_argument('--screenshots', '-s', type=int, required=False, help='Number of screenshots to make')
         self.args = vars(parser.parse_args())
         self.input = self.args['input']
+
+        if self.args['output']:
+            self.output = self.args['output']
+        else:
+            self.output = Path(self.args['input']).with_suffix('.mkv')
+
 
     def check_executables(self):
         """Checking is all required executables reachable"""
