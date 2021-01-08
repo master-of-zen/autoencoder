@@ -6,8 +6,13 @@ import re
 import vapoursynth as vs
 import argparse
 from pathlib import Path
+from subprocess import Popen
 import subprocess
 import json
+from pprint import PrettyPrinter
+import os
+pp = PrettyPrinter(indent=2).pprint
+
 
 """
 Autoencoder
@@ -18,6 +23,8 @@ class Autoencoder:
     def __init__(self):
         self.args = None
         self.input = None
+        self.tracks = None
+        self.crop = ''
 
     def argparsing(self):
         """
@@ -26,6 +33,7 @@ class Autoencoder:
         parser = argparse.ArgumentParser()
         io_group = parser.add_argument_group('Input and Output')
         io_group.add_argument('--input', '-i', type=Path, required=True, help='Input File')
+        io_group.add_argument('--ouput', '-o', type=Path, help="Output file name")
         io_group.add_argument('--screenshots', '-s', type=int, required=False, help='Number of screenshots to make')
         self.args = vars(parser.parse_args())
         self.input = self.args['input']
