@@ -23,7 +23,10 @@ class Autoencoder:
     def __init__(self):
         self.args = None
         self.input = None
+        self.output = None
         self.tracks = None
+        self.audio_tracks = []
+        self.subtitle_tracks = []
         self.crop = ''
 
     def argparsing(self):
@@ -126,10 +129,29 @@ class Autoencoder:
         #pp(audio[0])
         print(':: Extracting Audio')
         for x in audio:
-            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["@typeorder"]}:Audio/{x["@typeorder"]}.mkv'.split()
+            track = f'Audio/{x["@typeorder"]}.mkv'
+            self.audio_tracks.append(track)
+            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["@typeorder"]}:{track}'.split()
             Popen(cmd).wait()
 
         print(':: Audio Extracted')
+
+
+        Path("Subtitles").mkdir(parents=True, exist_ok=True)
+
+        #pp(self.tracks)
+        subtitles = [x for x in self.tracks if x['@type'] == "Text"]
+
+        print(':: Extracting Subtitles')
+
+        for x in subtitles:
+            print(x)
+            track = f'Subtitles/{x["@typeorder"]}.mkv'
+            self.audio_tracks.append(track)
+            cmd = f'mkvextract {Path(self.input).as_posix()} tracks {x["@typeorder"]}:{track}'.split()
+            Popen(cmd).wait()
+
+        print(':: Subtitles Extracted')
 
     def get_tracks_info(self):
         cmd = f'mediainfo --Output=JSON {self.input.as_posix()}'
@@ -144,19 +166,24 @@ class Autoencoder:
 
         #pp(self.tracks)
 
-    def extract(self):
-        pass
+    def merge(self):
 
+        print(':: Mergin end result')
 
-    def mux(self):
-        pass
+        to_merge = ' '.join(self.audio_tracks) + ' '.join(self.subtitle_tracks)
 
+        cmd = f'mkvmerge -q -o {self.output} encoded.mkv {to_merge}'
 
-    def encode(self, video):
+        Popen(cmd.split()).wait()
+
+        print(':: All done!')
+
+    def encode(self):
 
         anime = ''
 
         if anime:
+            deblock = -1
             anim = f"--deblock {deblock}"
         else:
             anim = ""
@@ -192,7 +219,7 @@ class Autoencoder:
 
         en = Popen(enc.split(), stdin=pr.stdout).wait()
 
-        vs_pipe = f'vspipe --y4m {vspipe_file} - | x --crf {crf}'
+        print(':: Encoded')
 
     def make_screenshots(self, video, frame_count, number_of_screenshots):
         pass
@@ -209,9 +236,7 @@ if __name__ == "__main__":
     encoder.get_tracks_info()
     encoder.extract()
     encoder.encode()
-    # TODO: Encode
+    encoder.merge()
 
     # TODO: Detect desync
     # TODO: Get screenshots
-
-    # TODO: Mux everything together
