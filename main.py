@@ -93,6 +93,8 @@ class Autoencoder:
             print(r.stderr.decode())
             sys.exit()
 
+        os.remove('get_media_info.py')
+
         w = int(re.findall("Width: ([0-9]+)", output)[0])
         h = int(re.findall("Height: ([0-9]+)", output)[0])
         frames = int(re.findall("Frames: ([0-9]+)", output)[0])
