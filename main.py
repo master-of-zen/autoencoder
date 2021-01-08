@@ -101,6 +101,18 @@ class Autoencoder:
         print(f':: Media info:\n:: {w}:{h} frames:{frames}')
         return w, h, frames, fps, depth
 
+    def extract(self):
+
+        Path("Audio").mkdir(parents=True, exist_ok=True)
+
+        audio = [x for x in self.tracks if x['@type'] == "Audio"]
+        #pp(audio[0])
+        print(':: Extracting Audio')
+        for x in audio:
+            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["@typeorder"]}:Audio/{x["@typeorder"]}.mkv'.split()
+            Popen(cmd).wait()
+
+        print(':: Audio Extracted')
 
     def get_tracks_info(self):
         cmd = f'mediainfo --Output=JSON {self.input.as_posix()}'
