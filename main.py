@@ -134,8 +134,9 @@ class Autoencoder:
                 print(r.stderr.decode())
                 sys.exit()
 
-        track_info = json.loads(r.stdout.decode())
+        self.tracks = json.loads(r.stdout.decode())['media']['track']
 
+        #pp(self.tracks)
 
     def extract(self):
         pass
