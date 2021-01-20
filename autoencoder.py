@@ -187,14 +187,16 @@ class Autoencoder:
 
         # Making source referense screenshot
         Path("Temp").mkdir(parents=True, exist_ok=True)
-        cmd_source = f"ffmpeg -i {self.input} -an -sn -dn -filter_complex \"select='eq(n,1010)',{self.ffmpeg_crop}\" ref.png "
+        cmd_source = f"ffmpeg -hide_banner -i {self.input} -an -sn -dn -filter_complex 'select=eq(n,1010)',{self.ffmpeg_crop} -frames:v 1 -c Temp/ref.png "
+        print(cmd_source)
+
         Popen(shlex.split(cmd_source)).wait()
         print(":: Source screenshot made")
 
 
         # Making encoded screenshot
-        cmd_source = f"ffmpeg -i self.output -an -sn -dn -filter_complex \"select='beetween(n,1005,1015)'\",{self.ffmpeg_crop}\" encoded.png "
-        Popen(shlex.split(cmd_source)).wait()
+        cmd_enc = f"ffmpeg -hide_banner -i self.output -an -sn -dn -filter_complex select='beetween(n,1005,1015)',{self.ffmpeg_crop} Temp/%03d.png "
+        Popen(shlex.split(cmd_enc)).wait()
         print(":: Encoed screenshots made")
 
     def encode(self):
