@@ -30,6 +30,7 @@ class Autoencoder:
         self.subtitle_tracks = []
         self.crop = ''
         self.ffmpeg_crop = ''
+        self.desync_frames = 0
 
     def argparsing(self):
         """
@@ -149,11 +150,12 @@ class Autoencoder:
 
         print(':: Extracting Subtitles')
 
+        # TODO: fix extracting audio and not subs
         for x in subtitles:
-            print(x)
-            track = f'Subtitles/{x["@typeorder"]}.mkv'
+            #print(x)
+            track = f'Subtitles/{x["StreamOrder"]}.srt'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract {Path(self.input).as_posix()} tracks {x["@typeorder"]}:{track}'.split()
+            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["StreamOrder"]}:{track}'.split()
             Popen(cmd).wait()
 
         print(':: Subtitles Extracted')
@@ -185,19 +187,52 @@ class Autoencoder:
 
     def detect_desync(self):
 
+        print(":: Detecting desync")
+
         # Making source referense screenshot
         Path("Temp").mkdir(parents=True, exist_ok=True)
-        cmd_source = f"ffmpeg -hide_banner -i {self.input} -an -sn -dn -filter_complex 'select=eq(n,1010)',{self.ffmpeg_crop} -frames:v 1 -c Temp/ref.png "
-        print(cmd_source)
+        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + "'select=eq(n\\,1710)'," + f"{self.ffmpeg_crop} -frames:v 1 Temp/ref.png "
+        #print(cmd_source)
 
         Popen(shlex.split(cmd_source)).wait()
-        print(":: Source screenshot made")
+        #print(":: Source screenshot made")
 
 
+        # encoded.mkv
         # Making encoded screenshot
-        cmd_enc = f"ffmpeg -hide_banner -i self.output -an -sn -dn -filter_complex select='beetween(n,1005,1015)',{self.ffmpeg_crop} Temp/%03d.png "
+        cmd_enc = f"ffmpeg -y -hide_banner -loglevel warning -i encoded.mkv -an -sn -dn -filter_complex " + "'select=between(n\\,1705\\,1715)',setpts=PTS-STARTPTS," + f"{self.ffmpeg_crop}  Temp/%03d.png "
+        #print(cmd_enc)
         Popen(shlex.split(cmd_enc)).wait()
-        print(":: Encoed screenshots made")
+        #print(":: Encoded screenshots made")
+
+        #r = subprocess.run(script, capture_output=True)
+        #output = r.stderr.decode()
+
+        # Sync frame is 6
+
+        # [('001.png', 22.1255), ('002.png', 23.231239), ('003.png', 24.808687), ('004.png', 26.775733), ('005.png', 29.99033), ('006.png', 'infinite'), ('007.png', 30.340453), ('008.png', 27.589498), ('009.png', 25.867822), ('010.png', 24.417369), ('011.png', 23.194266)]
+
+        flist = []
+        for p in Path('Temp').iterdir():
+            if p.is_file() and 'ref' not in p.name:
+                #print(p)
+                script = f"ffmpeg -hide_banner -i {p}  -i Temp/ref.png -filter_complex psnr -f null -"
+                r = subprocess.run(shlex.split(script), capture_output=True)
+                output = r.stderr.decode()
+                #print(output)
+                if 'inf' in output:
+                    score = 'infinite'
+                else:
+                    score = float(re.findall(r"average:(\d+.\d+)", output)[-1])
+
+                tp = (int(p.stem) - 6, score)
+                flist.append(tp)
+        self.desync_frames =  max(flist, key=lambda x: x[1])[0]
+
+        if self.desync_frames == 0:
+            print(":: No desync detected")
+        else:
+            print(f":: Detected desync: {self.desync_frames} frame(s)")
 
     def encode(self):
 
