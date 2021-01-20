@@ -11,6 +11,7 @@ import subprocess
 import json
 from pprint import PrettyPrinter
 import os
+import shlex
 pp = PrettyPrinter(indent=2).pprint
 
 
@@ -28,6 +29,7 @@ class Autoencoder:
         self.audio_tracks = []
         self.subtitle_tracks = []
         self.crop = ''
+        self.ffmpeg_crop = ''
 
     def argparsing(self):
         """
@@ -73,6 +75,9 @@ class Autoencoder:
 
 
         _, _, crop_x, crop_y = [ int(x) for x in re.findall(r"crop=([\d]+):([\d]+):([\d]+):([\d]+)", output)[-1]]
+
+        self.ffmpeg_crop = re.findall(r"(crop=+.*)", output)[-1]
+
         crop_left = crop_x
         crop_right = crop_x
         crop_top = crop_y
@@ -178,6 +183,20 @@ class Autoencoder:
 
         print(':: All done!')
 
+    def detect_desync(self):
+
+        # Making source referense screenshot
+        Path("Temp").mkdir(parents=True, exist_ok=True)
+        cmd_source = f"ffmpeg -i {self.input} -an -sn -dn -filter_complex \"select='eq(n,1010)',{self.ffmpeg_crop}\" ref.png "
+        Popen(shlex.split(cmd_source)).wait()
+        print(":: Source screenshot made")
+
+
+        # Making encoded screenshot
+        cmd_source = f"ffmpeg -i self.output -an -sn -dn -filter_complex \"select='beetween(n,1005,1015)'\",{self.ffmpeg_crop}\" encoded.png "
+        Popen(shlex.split(cmd_source)).wait()
+        print(":: Encoed screenshots made")
+
     def encode(self):
 
         anime = ''
@@ -237,6 +256,7 @@ if __name__ == "__main__":
     encoder.extract()
     encoder.encode()
     encoder.merge()
+    encoder.detect_desync()
 
     # TODO: Detect desync
     # TODO: Get screenshots
