@@ -26,6 +26,8 @@ class Autoencoder:
         self.input = None
         self.output = None
         self.tracks = None
+        self.frames = None
+        self.screenshots = None
         self.audio_tracks = []
         self.subtitle_tracks = []
         self.crop = ''
@@ -40,9 +42,10 @@ class Autoencoder:
         io_group = parser.add_argument_group('Input and Output')
         io_group.add_argument('--input', '-i', type=Path, required=True, help='Input File')
         io_group.add_argument('--output', '-o', type=Path, help="Output file name")
-        io_group.add_argument('--screenshots', '-s', type=int, required=False, help='Number of screenshots to make')
+        io_group.add_argument('--screenshots', '-s', type=int, required=False, default=5, help='Number of screenshots to make')
         self.args = vars(parser.parse_args())
         self.input = self.args['input']
+        self.screenshots = self.args['screenshots']
 
         if self.args['output']:
             self.output = self.args['output']
@@ -69,15 +72,13 @@ class Autoencoder:
     def auto_crop(self):
         """Getting information about how source can be cropped"""
 
-        script = f'ffmpeg -i {self.input.as_posix()} -vf fps=fps=5,cropdetect -f null -'.split()
+        script = f'ffmpeg -i {self.input.as_posix()} -an -sn -vf fps=fps=5,cropdetect -f null -'.split()
 
         r = subprocess.run(script, capture_output=True)
         output = r.stderr.decode()
 
 
-        _, _, crop_x, crop_y = [ int(x) for x in re.findall(r"crop=([\d]+):([\d]+):([\d]+):([\d]+)", output)[-1]]
-
-        self.ffmpeg_crop = re.findall(r"(crop=+.*)", output)[-1]
+        c1, c2, crop_x, crop_y = [ int(x) for x in re.findall(r"crop=([\d]+):([\d]+):([\d]+):([\d]+)", output)[-1]]
 
         crop_left = crop_x
         crop_right = crop_x
@@ -87,6 +88,7 @@ class Autoencoder:
             print(':: No crop required')
         else:
             print(f":: Autocrop Detected")
+            self.ffmpeg_crop = f"crop={c1}:{c2}:{crop_x}:{crop_y}"
             self.crop = f'video = core.std.Crop(video, left={crop_left}, right={crop_right},top = {crop_top},bottom = {crop_bottom})'
 
         return (crop_left, crop_right, crop_top, crop_bottom)
@@ -122,6 +124,7 @@ class Autoencoder:
         w = int(re.findall("Width: ([0-9]+)", output)[0])
         h = int(re.findall("Height: ([0-9]+)", output)[0])
         frames = int(re.findall("Frames: ([0-9]+)", output)[0])
+        self.frames = int(re.findall("Frames: ([0-9]+)", output)[0])
         fps = int(re.findall("FPS: ([0-9]+)", output)[0])
         depth = int(re.findall("Bits: ([0-9]+)", output)[0])
         print(f':: Media info:\n:: {w}:{h} frames:{frames}')
@@ -129,13 +132,13 @@ class Autoencoder:
 
     def extract(self):
 
-        Path("Audio").mkdir(parents=True, exist_ok=True)
+        Path("Temp/Audio").mkdir(parents=True, exist_ok=True)
 
         audio = [x for x in self.tracks if x['@type'] == "Audio"]
         #pp(audio[0])
         print(':: Extracting Audio')
         for x in audio:
-            track = f'Audio/{x["@typeorder"]}.mkv'
+            track = f'Temp/Audio/{x["@typeorder"]}.mkv'
             self.audio_tracks.append(track)
             cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["@typeorder"]}:{track}'.split()
             Popen(cmd).wait()
@@ -143,7 +146,7 @@ class Autoencoder:
         print(':: Audio Extracted')
 
 
-        Path("Subtitles").mkdir(parents=True, exist_ok=True)
+        Path("Temp/Subtitles").mkdir(parents=True, exist_ok=True)
 
         #pp(self.tracks)
         subtitles = [x for x in self.tracks if x['@type'] == "Text"]
@@ -153,7 +156,7 @@ class Autoencoder:
         # TODO: fix extracting audio and not subs
         for x in subtitles:
             #print(x)
-            track = f'Subtitles/{x["StreamOrder"]}.srt'
+            track = f'Temp/Subtitles/{x["StreamOrder"]}.srt'
             self.audio_tracks.append(track)
             cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["StreamOrder"]}:{track}'.split()
             Popen(cmd).wait()
@@ -179,19 +182,19 @@ class Autoencoder:
 
         to_merge = ' '.join(self.audio_tracks) + ' '.join(self.subtitle_tracks)
 
-        cmd = f'mkvmerge -q -o {self.output} encoded.mkv {to_merge}'
+        cmd = f'mkvmerge -q -o {self.output} Temp/encoded.mkv {to_merge}'
 
         Popen(cmd.split()).wait()
 
-        print(':: All done!')
+
 
     def detect_desync(self):
 
         print(":: Detecting desync")
 
         # Making source referense screenshot
-        Path("Temp").mkdir(parents=True, exist_ok=True)
-        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + "'select=eq(n\\,1710)'," + f"{self.ffmpeg_crop} -frames:v 1 Temp/ref.png "
+        Path("Temp/Sync").mkdir(parents=True, exist_ok=True)
+        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + "'select=eq(n\\,1710)'," + f"{self.ffmpeg_crop} -frames:v 1 Temp/Sync/ref.png "
         #print(cmd_source)
 
         Popen(shlex.split(cmd_source)).wait()
@@ -200,7 +203,7 @@ class Autoencoder:
 
         # encoded.mkv
         # Making encoded screenshot
-        cmd_enc = f"ffmpeg -y -hide_banner -loglevel warning -i encoded.mkv -an -sn -dn -filter_complex " + "'select=between(n\\,1705\\,1715)',setpts=PTS-STARTPTS," + f"{self.ffmpeg_crop}  Temp/%03d.png "
+        cmd_enc = f"ffmpeg -y -hide_banner -loglevel warning -i Temp/encoded.mkv -an -sn -dn -filter_complex " + "'select=between(n\\,1705\\,1715)',setpts=PTS-STARTPTS," + f"{self.ffmpeg_crop}  Temp/Sync/%03d.png "
         #print(cmd_enc)
         Popen(shlex.split(cmd_enc)).wait()
         #print(":: Encoded screenshots made")
@@ -213,10 +216,10 @@ class Autoencoder:
         # [('001.png', 22.1255), ('002.png', 23.231239), ('003.png', 24.808687), ('004.png', 26.775733), ('005.png', 29.99033), ('006.png', 'infinite'), ('007.png', 30.340453), ('008.png', 27.589498), ('009.png', 25.867822), ('010.png', 24.417369), ('011.png', 23.194266)]
 
         flist = []
-        for p in Path('Temp').iterdir():
+        for p in Path('Temp/Sync').iterdir():
             if p.is_file() and 'ref' not in p.name:
                 #print(p)
-                script = f"ffmpeg -hide_banner -i {p}  -i Temp/ref.png -filter_complex psnr -f null -"
+                script = f"ffmpeg -hide_banner -i {p}  -i Temp/Sync/ref.png -filter_complex psnr -f null -"
                 r = subprocess.run(shlex.split(script), capture_output=True)
                 output = r.stderr.decode()
                 #print(output)
@@ -232,7 +235,7 @@ class Autoencoder:
         if self.desync_frames == 0:
             print(":: No desync detected")
         else:
-            print(f":: Detected desync: {self.desync_frames} frame(s)")
+            print(f":: Detected {self.desync_frames} desync")
 
     def encode(self):
 
@@ -249,7 +252,7 @@ class Autoencoder:
         aq= 1
         psy= 30
 
-        p2pformat = f'x264 --log-level error -  --preset superfast --demuxer y4m --output encoded.mkv'
+        p2pformat = f'x264 --log-level error - --crf 20  --preset superfast --demuxer y4m --output Temp/encoded.mkv'
 
         #p2pformat = f'x264 --log-level error --preset superfast --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output encoded.mkv - --ref 6 --min-keyint {fps} --aq-mode 2 --aq-strength {aq} --qcomp 0.62 {anim} --psy-rd {psy} --bframes 16 '
 
@@ -277,9 +280,31 @@ class Autoencoder:
 
         print(':: Encoded')
 
-    def make_screenshots(self, video, frame_count, number_of_screenshots):
-        pass
+    def make_screenshots(self):
 
+        if self.screenshots == 0:
+            return
+
+        if self.desync_frames:
+            print(f":: Making Screenshots with desync {self.desync_frames}")
+        else: print("Making Screenshots")
+
+        screenshot_places_source = [round(self.frames * x / self.screenshots + 1 ) for x in range(self.screenshots + 2 )[1:-1]]
+        select_source = f"'select=eq(n\\,{screenshot_places_source[0]})" + ''.join([f"+eq(n\\,{x})" for x in screenshot_places_source[1:-1]])  + "',"
+
+
+        Path("Screenshots").mkdir(parents=True, exist_ok=True)
+        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + select_source + f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png "
+        #print(cmd_source)
+
+        Popen(shlex.split(cmd_source)).wait()
+
+        screenshot_places_encoded = [ round(self.desync_frames + (self.frames * x / self.screenshots + 1 )) for x in range(self.screenshots + 2)[1:-1]]
+        select_encoded = f"'select=eq(n\\,{screenshot_places_encoded[0]})" + ''.join([f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:-1]])  + "',"
+        cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + select_encoded + f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
+        #print(cmd_encode)
+        Popen(shlex.split(cmd_encode)).wait()
+        print(":: Screenshot made")
 
 if __name__ == "__main__":
 
@@ -294,6 +319,7 @@ if __name__ == "__main__":
     encoder.encode()
     encoder.merge()
     encoder.detect_desync()
-
+    encoder.make_screenshots()
+    print(':: All done!')
     # TODO: Detect desync
     # TODO: Get screenshots
