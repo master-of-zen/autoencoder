@@ -12,15 +12,14 @@ import json
 from pprint import PrettyPrinter
 import os
 import shlex
+import numpy as np
 pp = PrettyPrinter(indent=2).pprint
-
-
 """
 Autoencoder
 """
 
-class Autoencoder:
 
+class Autoencoder:
     def __init__(self):
         self.args = None
         self.input = None
@@ -28,6 +27,7 @@ class Autoencoder:
         self.tracks = None
         self.frames = None
         self.screenshots = None
+        self.queue = None
         self.audio_tracks = []
         self.subtitle_tracks = []
         self.crop = ''
@@ -40,18 +40,39 @@ class Autoencoder:
         """
         parser = argparse.ArgumentParser()
         io_group = parser.add_argument_group('Input and Output')
-        io_group.add_argument('--input', '-i', type=Path, required=True, help='Input File')
-        io_group.add_argument('--output', '-o', type=Path, help="Output file name")
-        io_group.add_argument('--screenshots', '-s', type=int, required=False, default=5, help='Number of screenshots to make')
+        io_group.add_argument('--input',
+                              '-i',
+                              type=Path,
+                              required=True,
+                              help='Input File/Folder')
+        io_group.add_argument('--output',
+                              '-o',
+                              type=Path,
+                              help="Output file name")
+        io_group.add_argument('--screenshots',
+                              '-s',
+                              type=int,
+                              required=False,
+                              default=5,
+                              help='Number of screenshots to make')
+        io_group.add_argument('--resolution',
+                              '-r',
+                              type=str,
+                              nargs='+',
+                              help='resolutions to encode in')
         self.args = vars(parser.parse_args())
-        self.input = self.args['input']
+        self.input: Path = self.args['input']
+        if self.input.is_dir():
+            self.queue = [x for x in self.input.iterdir() if x.is_file()]
+        else:
+            self.queue = [self.input]
+
         self.screenshots = self.args['screenshots']
 
         if self.args['output']:
             self.output = self.args['output']
         else:
             self.output = Path(self.args['input']).with_suffix('.mkv')
-
 
     def check_executables(self):
         """Checking is all required executables reachable"""
@@ -68,17 +89,19 @@ class Autoencoder:
             print("Can't find mediainfo")
             sys.exit()
 
-
     def auto_crop(self):
         """Getting information about how source can be cropped"""
 
-        script = f'ffmpeg -i {self.input.as_posix()} -an -sn -vf fps=fps=5,cropdetect -f null -'.split()
+        script = f'ffmpeg -i {self.input.as_posix()} -an -sn -vf fps=fps=5,cropdetect -f null -'.split(
+        )
 
         r = subprocess.run(script, capture_output=True)
         output = r.stderr.decode()
 
-
-        c1, c2, crop_x, crop_y = [ int(x) for x in re.findall(r"crop=([\d]+):([\d]+):([\d]+):([\d]+)", output)[-1]]
+        c1, c2, crop_x, crop_y = [
+            int(x) for x in re.findall(r"crop=([\d]+):([\d]+):([\d]+):([\d]+)",
+                                       output)[-1]
+        ]
 
         crop_left = crop_x
         crop_right = crop_x
@@ -92,7 +115,6 @@ class Autoencoder:
             self.crop = f'video = core.std.Crop(video, left={crop_left}, right={crop_right},top = {crop_top},bottom = {crop_bottom})'
 
         return (crop_left, crop_right, crop_top, crop_bottom)
-
 
     def get_media_info(self):
         """
@@ -111,7 +133,8 @@ class Autoencoder:
         with open('get_media_info.py', 'w') as fl:
             fl.write(script)
 
-        r = subprocess.run(f"vspipe get_media_info.py -i -".split(), capture_output=True)
+        r = subprocess.run(f"vspipe get_media_info.py -i -".split(),
+                           capture_output=True)
         output = r.stdout.decode()
 
         if len(r.stderr.decode()) > 0:
@@ -140,11 +163,11 @@ class Autoencoder:
         for x in audio:
             track = f'Temp/Audio/{x["@typeorder"]}.mkv'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["@typeorder"]}:{track}'.split()
+            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["@typeorder"]}:{track}'.split(
+            )
             Popen(cmd).wait()
 
         print(':: Audio Extracted')
-
 
         Path("Temp/Subtitles").mkdir(parents=True, exist_ok=True)
 
@@ -158,7 +181,8 @@ class Autoencoder:
             #print(x)
             track = f'Temp/Subtitles/{x["StreamOrder"]}.srt'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["StreamOrder"]}:{track}'.split()
+            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["StreamOrder"]}:{track}'.split(
+            )
             Popen(cmd).wait()
 
         print(':: Subtitles Extracted')
@@ -168,9 +192,9 @@ class Autoencoder:
         r = subprocess.run(cmd.split(), capture_output=True)
 
         if len(r.stderr.decode()) > 0:
-                print('Error in getting track info')
-                print(r.stderr.decode())
-                sys.exit()
+            print('Error in getting track info')
+            print(r.stderr.decode())
+            sys.exit()
 
         self.tracks = json.loads(r.stdout.decode())['media']['track']
 
@@ -186,8 +210,6 @@ class Autoencoder:
 
         Popen(cmd.split()).wait()
 
-
-
     def detect_desync(self):
 
         print(":: Detecting desync")
@@ -200,7 +222,6 @@ class Autoencoder:
         Popen(shlex.split(cmd_source)).wait()
         #print(":: Source screenshot made")
 
-
         # encoded.mkv
         # Making encoded screenshot
         cmd_enc = f"ffmpeg -y -hide_banner -loglevel warning -i Temp/encoded.mkv -an -sn -dn -filter_complex " + "'select=between(n\\,1705\\,1715)',setpts=PTS-STARTPTS," + f"{self.ffmpeg_crop}  Temp/Sync/%03d.png "
@@ -212,8 +233,6 @@ class Autoencoder:
         #output = r.stderr.decode()
 
         # Sync frame is 6
-
-        # [('001.png', 22.1255), ('002.png', 23.231239), ('003.png', 24.808687), ('004.png', 26.775733), ('005.png', 29.99033), ('006.png', 'infinite'), ('007.png', 30.340453), ('008.png', 27.589498), ('009.png', 25.867822), ('010.png', 24.417369), ('011.png', 23.194266)]
 
         flist = []
         for p in Path('Temp/Sync').iterdir():
@@ -230,7 +249,7 @@ class Autoencoder:
 
                 tp = (int(p.stem) - 6, score)
                 flist.append(tp)
-        self.desync_frames =  max(flist, key=lambda x: x[1])[0]
+        self.desync_frames = max(flist, key=lambda x: x[1])[0]
 
         if self.desync_frames == 0:
             print(":: No desync detected")
@@ -241,20 +260,14 @@ class Autoencoder:
 
         anime = ''
 
-        if anime:
-            deblock = -1
-            anim = f"--deblock {deblock}"
-        else:
-            anim = ""
+        crf = 30
+        fps = 240
+        aq = 1
+        psy = 30
 
-        crf= 30
-        fps= 240
-        aq= 1
-        psy= 30
+        p2pformat = f'x264 --log-level error - --crf 17  --preset superfast --demuxer y4m --output Temp/encoded.mkv'
 
-        p2pformat = f'x264 --log-level error - --crf 20  --preset superfast --demuxer y4m --output Temp/encoded.mkv'
-
-        #p2pformat = f'x264 --log-level error --preset superfast --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output encoded.mkv - --ref 6 --min-keyint {fps} --aq-mode 2 --aq-strength {aq} --qcomp 0.62 {anim} --psy-rd {psy} --bframes 16 '
+        #p2pformat = f'x264 --log-level error --preset superfast --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output encoded.mkv - --ref 6 --min-keyint {fps} --aq-mode 2 --aq-strength {aq} --qcomp 0.62 --psy-rd {psy} --bframes 16 '
 
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
@@ -262,19 +275,16 @@ class Autoencoder:
         self.crop + '\n'\
         "video.set_output()"
 
-
-
         with open('settings.py', 'w') as w:
             w.write(script)
 
-
-
         vs_pipe = f'vspipe --y4m settings.py - '
-        enc =  f'{p2pformat} --crf {crf} '
-
+        enc = f'{p2pformat} --crf {crf} '
 
         print(':: Encoding..\r')
-        pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE,stderr=subprocess.PIPE )
+        pr = Popen(vs_pipe.split(),
+                   stdout=subprocess.PIPE,
+                   stderr=subprocess.PIPE)
 
         en = Popen(enc.split(), stdin=pr.stdout).wait()
 
@@ -287,11 +297,24 @@ class Autoencoder:
 
         if self.desync_frames:
             print(f":: Making Screenshots with desync {self.desync_frames}")
-        else: print("Making Screenshots")
+        else:
+            print("Making Screenshots")
 
-        screenshot_places_source = [round(self.frames * x / self.screenshots + 1 ) for x in range(self.screenshots + 2 )[1:-1]]
-        select_source = f"'select=eq(n\\,{screenshot_places_source[0]})" + ''.join([f"+eq(n\\,{x})" for x in screenshot_places_source[1:-1]])  + "',"
+        screenshot_places_source = np.linspace(0,
+                                               self.frames,
+                                               num=self.screenshots + 1,
+                                               endpoint=False,
+                                               dtype=int)[1:]
 
+        screenshot_places_encoded = np.linspace(0 + self.desync_frames,
+                                                self.frames +
+                                                self.desync_frames,
+                                                num=self.screenshots + 1,
+                                                endpoint=False,
+                                                dtype=int)[1:]
+
+        select_source = f"'select=eq(n\\,{screenshot_places_source[0]})" + ''.join(
+            [f"+eq(n\\,{x})" for x in screenshot_places_source[1:]]) + "',"
 
         Path("Screenshots").mkdir(parents=True, exist_ok=True)
         cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + select_source + f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png "
@@ -299,27 +322,30 @@ class Autoencoder:
 
         Popen(shlex.split(cmd_source)).wait()
 
-        screenshot_places_encoded = [ round(self.desync_frames + (self.frames * x / self.screenshots + 1 )) for x in range(self.screenshots + 2)[1:-1]]
-        select_encoded = f"'select=eq(n\\,{screenshot_places_encoded[0]})" + ''.join([f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:-1]])  + "',"
-        cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + select_encoded + f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
+        #print(screenshot_places_source)
+        #print(screenshot_places_encoded)
+        select_encoded = f"'select=eq(n\\,{screenshot_places_encoded[0]})" + ''.join(
+            [f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:-1]]) + "',"
+        cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.output} -an -sn -dn -filter_complex " + select_encoded + f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
         #print(cmd_encode)
         Popen(shlex.split(cmd_encode)).wait()
         print(":: Screenshot made")
 
-if __name__ == "__main__":
+    # def encode_queue(self):
 
+
+if __name__ == "__main__":
     encoder = Autoencoder()
     # Check initial requirements
     encoder.check_executables()
     encoder.argparsing()
     encoder.get_media_info()
     encoder.auto_crop()
-    encoder.get_tracks_info()
-    encoder.extract()
+    #encoder.get_tracks_info()
+    #encoder.extract()
+    #encdoer.encode_queue()
     encoder.encode()
     encoder.merge()
     encoder.detect_desync()
     encoder.make_screenshots()
     print(':: All done!')
-    # TODO: Detect desync
-    # TODO: Get screenshots
