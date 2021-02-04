@@ -243,7 +243,7 @@ class Autoencoder:
                 output = r.stderr.decode()
                 #print(output)
                 if 'inf' in output:
-                    score = 'infinite'
+                    score = 1000.0
                 else:
                     score = float(re.findall(r"average:(\d+.\d+)", output)[-1])
 
@@ -267,7 +267,7 @@ class Autoencoder:
 
         p2pformat = f'x264 --log-level error - --crf 17  --preset superfast --demuxer y4m --output Temp/encoded.mkv'
 
-        #p2pformat = f'x264 --log-level error --preset superfast --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output encoded.mkv - --ref 6 --min-keyint {fps} --aq-mode 2 --aq-strength {aq} --qcomp 0.62 --psy-rd {psy} --bframes 16 '
+        #p2pformat = f'x264 --log-level error  --preset veryfast --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref 6 --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 '
 
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
@@ -298,7 +298,7 @@ class Autoencoder:
         if self.desync_frames:
             print(f":: Making Screenshots with desync {self.desync_frames}")
         else:
-            print("Making Screenshots")
+            print(":: Making Screenshots")
 
         screenshot_places_source = np.linspace(0,
                                                self.frames,
@@ -341,8 +341,8 @@ if __name__ == "__main__":
     encoder.argparsing()
     encoder.get_media_info()
     encoder.auto_crop()
-    #encoder.get_tracks_info()
-    #encoder.extract()
+    encoder.get_tracks_info()
+    encoder.extract()
     #encdoer.encode_queue()
     encoder.encode()
     encoder.merge()
