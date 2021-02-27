@@ -14,9 +14,6 @@ import os
 import shlex
 import numpy as np
 pp = PrettyPrinter(indent=2).pprint
-"""
-Autoencoder
-"""
 
 
 class Autoencoder:
@@ -33,6 +30,7 @@ class Autoencoder:
         self.crop = ''
         self.ffmpeg_crop = ''
         self.desync_frames = 0
+        self.audio_tracks_names = []
 
     def argparsing(self):
         """
