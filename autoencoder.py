@@ -32,6 +32,7 @@ class Autoencoder:
         self.crop = ''
         self.ffmpeg_crop = ''
         self.desync_frames = 0
+        self.tracks_info = None
         self.audio_tracks_names = []
 
     def argparsing(self):
@@ -125,6 +126,7 @@ class Autoencoder:
             print(f"Video {self.input.as_posix()} is not reachable")
             sys.exit()
 
+
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
         f"video = core.ffms2.Source('{self.input.as_posix()}')\n" + \
@@ -158,12 +160,13 @@ class Autoencoder:
         Path("Temp/Audio").mkdir(parents=True, exist_ok=True)
 
         audio = [x for x in self.tracks if x['@type'] == "Audio"]
-        #pp(audio[0])
+
+        # pp(self.tracks)
         print(':: Extracting Audio')
         for x in audio:
-            track = f'Temp/Audio/{x["@typeorder"]}.mkv'
+            track = f'Temp/Audio/{x["StreamOrder"]}.mkv'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["@typeorder"]}:{track}'.split(
+            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["StreamOrder"]}:{track}'.split(
             )
             Popen(cmd).wait()
 
@@ -176,7 +179,6 @@ class Autoencoder:
 
         print(':: Extracting Subtitles')
 
-        # TODO: fix extracting audio and not subs
         for x in subtitles:
             #print(x)
             track = f'Temp/Subtitles/{x["StreamOrder"]}.srt'
@@ -198,17 +200,56 @@ class Autoencoder:
 
         self.tracks = json.loads(r.stdout.decode())['media']['track']
 
-        pp(self.tracks)
+        # pp(self.tracks)
 
     def merge(self):
 
         print(':: Mergin end result')
 
-        to_merge = ' '.join(self.audio_tracks) + ' '.join(self.subtitle_tracks)
+        # merge = [f'{x} --track_name {}' for ]
 
-        cmd = f'mkvmerge -q -o {self.output} Temp/encoded.mkv {to_merge}'
+        #pp(self.tracks[1])
 
-        Popen(cmd.split()).wait()
+        audio = [x for x in self.tracks if x['@type'] == "Audio"]
+        subtitles = [x for x in self.tracks if x['@type'] == "Text"]
+        #print(audio, subtitles)
+
+        #print(f' --track_name "{audio[0][1]}" Temp/Audio/{audio[0][0]}.mkv ')
+
+        # Audio
+        to_merge_audio = []
+        for x in audio:
+            title = x["Title"]
+            track = x["StreamOrder"]
+            language = x['Language']
+            to_merge_audio.extend([
+                '--language', f'0:{language}', '--track-name', f'0:"{title}"',
+                f'Temp/Audio/{track}.mkv'
+            ])
+
+        # Subtitles
+        to_merge_subtitles = []
+        for x in subtitles:
+            title = x["Title"]
+            track = x["StreamOrder"]
+            language = x['Language']
+            to_merge_subtitles.extend([
+                '--language', f'0:{language}', '--track-name', f'0:{title}',
+                f'Temp/Subtitles/{track}.srt'
+            ])
+        to_merge = to_merge_audio + to_merge_subtitles
+
+        cmd = [
+            'mkvmerge',
+            '-q',
+            'Temp/encoded.mkv',
+            '-o',
+            self.output.as_posix(),
+            *to_merge,
+        ]
+        # print(cmd)
+
+        Popen(cmd).wait()
 
     def detect_desync(self):
 
@@ -220,9 +261,7 @@ class Autoencoder:
         #print(cmd_source)
 
         Popen(shlex.split(cmd_source)).wait()
-        #print(":: Source screenshot made")
 
-        # encoded.mkv
         # Making encoded screenshot
         cmd_enc = f"ffmpeg -y -hide_banner -loglevel warning -i Temp/encoded.mkv -an -sn -dn -filter_complex " + "'select=between(n\\,1705\\,1715)',setpts=PTS-STARTPTS," + f"{self.ffmpeg_crop}  Temp/Sync/%03d.png "
         #print(cmd_enc)
@@ -257,9 +296,6 @@ class Autoencoder:
             print(f":: Detected {self.desync_frames} desync")
 
     def encode(self):
-
-        anime = ''
-
         crf = 30
         fps = 240
 
