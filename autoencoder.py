@@ -15,7 +15,7 @@ import shlex
 import numpy as np
 pp = PrettyPrinter(indent=2).pprint
 
-## TODO: use mkvmerge to get all data about input file + copy names over
+## TODO: make it encode at multiple resolutions
 
 
 class Autoencoder:
