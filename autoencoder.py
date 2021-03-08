@@ -35,6 +35,7 @@ class Autoencoder:
         self.desync_frames = 0
         self.tracks_info = None
         self.audio_tracks_names = []
+        self.resolutions = None
 
     def argparsing(self):
         """
@@ -297,12 +298,12 @@ class Autoencoder:
             print(f":: Detected {self.desync_frames} desync")
 
     def encode(self):
-        crf = 30
+        crf = 20
         fps = 240
 
-        p2pformat = f'x264 --log-level error - --crf 17  --preset superfast --demuxer y4m --output Temp/encoded.mkv'
+        # p2pformat = f'x264 --log-level error - --crf 17  --preset superfast --demuxer y4m --output Temp/encoded.mkv'
 
-        #p2pformat = f'x264 --log-level error  --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref 6 --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 '
+        p2pformat = f'x264 --log-level error  --preset veryfast --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref 6 --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 '
 
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
