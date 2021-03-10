@@ -12,4 +12,5 @@
     -s --screenshots SCREENSHOTS, -s SCREENSHOTS
                         Number of screenshots to make
     -r --resolution RESOLUTION [RESOLUTION ...]
-                        resolutions to encode in```
+                        resolutions to encode in
+```
