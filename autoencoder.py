@@ -243,6 +243,8 @@ class Autoencoder:
         cmd = [
             'mkvmerge',
             '-q',
+            '--default-duration',
+            f'0:{self.fps}fps',
             'Temp/encoded.mkv',
             '-o',
             self.output.as_posix(),
