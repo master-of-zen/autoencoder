@@ -95,7 +95,7 @@ class Autoencoder:
     def auto_crop(self):
         """Getting information about how source can be cropped"""
 
-        script = f'ffmpeg -i {self.input.as_posix()} -an -sn -vf fps=fps=5,cropdetect -f null -'.split(
+        script = f'ffmpeg -i {self.input.as_posix()} -an -sn -vf fps=fps=5,cropdetect -t 240 -f null -'.split(
         )
 
         r = subprocess.run(script, capture_output=True)
