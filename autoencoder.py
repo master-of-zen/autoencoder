@@ -148,14 +148,13 @@ class Autoencoder:
 
         os.remove('get_media_info.py')
 
-        w = int(re.findall("Width: ([0-9]+)", output)[0])
-        h = int(re.findall("Height: ([0-9]+)", output)[0])
-        frames = int(re.findall("Frames: ([0-9]+)", output)[0])
+        self.w = int(re.findall("Width: ([0-9]+)", output)[0])
+        self.h = int(re.findall("Height: ([0-9]+)", output)[0])
         self.frames = int(re.findall("Frames: ([0-9]+)", output)[0])
-        fps = int(re.findall("FPS: ([0-9]+)", output)[0])
+
+        self.fps = re.findall("([0-9]+[.]+[0-9]+) fps", output)[0]
         depth = int(re.findall("Bits: ([0-9]+)", output)[0])
-        print(f':: Media info:\n:: {w}:{h} frames:{frames}')
-        return w, h, frames, fps, depth
+        print(f':: Media info:\n:: {self.w}:{self.h} frames:{self.frames}\n')
 
     def extract(self):
 
@@ -299,7 +298,18 @@ class Autoencoder:
 
     def encode(self):
 
-        p2pformat = f'x264 --log-level error  --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref 6 --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 --crf 20'
+        if self.w >= 1080:
+            ref = 4
+        elif self.w >= 720:
+            ref = 9
+        elif self.w >= 576:
+            ref = 12
+        elif self.w >= 480:
+            ref = 16
+
+        deblock = '-1:-1:-1'
+
+        p2pformat = f'x264 --log-level error  --fps {self.fps[0]}/{self.fps[1]} --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 --crf 20 --deblock {deblock}'
 
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
