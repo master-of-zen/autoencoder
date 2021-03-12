@@ -110,7 +110,7 @@ class Autoencoder:
         crop_right = crop_x
         crop_top = crop_y
         crop_bottom = crop_y
-        if crop_left + crop_right + crop_top + crop_bottom == 0:
+        if crop_left + crop_right + crop_top + crop_bottom == 0 or crop_y < 16:
             print(':: No crop required')
         else:
             print(f":: Autocrop Detected")
