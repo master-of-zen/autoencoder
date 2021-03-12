@@ -311,7 +311,11 @@ class Autoencoder:
 
         deblock = '-1:-1:-1'
 
-        p2pformat = f'x264 --log-level error  --fps {self.fps[0]}/{self.fps[1]} --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 --crf 20 --deblock {deblock}'
+        # Test
+        """
+        p2pformat = f'x264 --log-level error  --fps {self.fps} --preset superfast --demuxer y4m --output Temp/encoded.mkv - --crf 20 '
+        """
+        p2pformat = f'x264 --log-level error  --fps {self.fps} --preset superfast --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 --crf 20 --deblock {deblock}'
 
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
