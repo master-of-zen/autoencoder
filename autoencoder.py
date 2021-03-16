@@ -333,7 +333,7 @@ class Autoencoder:
                    stdout=subprocess.PIPE,
                    stderr=subprocess.PIPE)
 
-        en = Popen(p2pformat.split(), stdin=pr.stdout).wait()
+        Popen(p2pformat.split(), stdin=pr.stdout).wait()
 
         print(':: Encoded')
 
