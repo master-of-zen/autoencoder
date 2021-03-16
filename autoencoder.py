@@ -95,7 +95,7 @@ class Autoencoder:
     def auto_crop(self):
         """Getting information about how source can be cropped"""
 
-        script = f'ffmpeg -i {self.input.as_posix()} -an -sn -vf fps=fps=5,cropdetect -t 240 -f null -'.split(
+        script = f'ffmpeg -i {self.input.resolve()} -an -sn -vf fps=fps=5,cropdetect -t 240 -f null -'.split(
         )
 
         r = subprocess.run(script, capture_output=True)
@@ -125,13 +125,13 @@ class Autoencoder:
         Width, Height, Frames, Fps
         """
         if not self.input.exists():
-            print(f"Video {self.input.as_posix()} is not reachable")
+            print(f"Video {self.input.resolve()} is not reachable")
             sys.exit()
 
 
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
-        f"video = core.ffms2.Source('{self.input.as_posix()}')\n" + \
+        f"video = core.ffms2.Source('{self.input.resolve()}')\n" + \
         "video.set_output()"
 
         with open('get_media_info.py', 'w') as fl:
@@ -167,7 +167,7 @@ class Autoencoder:
         for x in audio:
             track = f'Temp/Audio/{x["StreamOrder"]}.mkv'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["StreamOrder"]}:{track}'.split(
+            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split(
             )
             Popen(cmd).wait()
 
@@ -184,14 +184,14 @@ class Autoencoder:
             #print(x)
             track = f'Temp/Subtitles/{x["StreamOrder"]}.srt'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract -q {Path(self.input).as_posix()} tracks {x["StreamOrder"]}:{track}'.split(
+            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split(
             )
             Popen(cmd).wait()
 
         print(':: Subtitles Extracted')
 
     def get_tracks_info(self):
-        cmd = f'mediainfo --Output=JSON {self.input.as_posix()}'
+        cmd = f'mediainfo --Output=JSON {self.input.resolve()}'
         r = subprocess.run(cmd.split(), capture_output=True)
 
         if len(r.stderr.decode()) > 0:
@@ -247,7 +247,7 @@ class Autoencoder:
             f'0:{self.fps}fps',
             'Temp/encoded.mkv',
             '-o',
-            self.output.as_posix(),
+            self.output.resolve(),
             *to_merge,
         ]
         # print(cmd)
@@ -319,14 +319,15 @@ class Autoencoder:
 
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
-        f"video = core.ffms2.Source('{self.input.as_posix()}')\n" + \
+        f"video = core.ffms2.Source('{self.input.resolve()}')\n" + \
         self.crop + '\n'\
         "video.set_output()"
 
-        with open('settings.py', 'w') as w:
+        settings_file = Path('settings.py')
+        with open(settings_file, 'w') as w:
             w.write(script)
 
-        vs_pipe = f'vspipe --y4m settings.py - '
+        vs_pipe = f'vspipe --y4m {settings_file.resolve()} - '
 
         print(':: Encoding..\r')
         pr = Popen(vs_pipe.split(),
