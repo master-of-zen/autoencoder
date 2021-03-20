@@ -131,7 +131,7 @@ class Autoencoder:
 
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
-        f"video = core.ffms2.Source('{self.input.resolve()}')\n" + \
+        f"video = core.ffms2.Source(r'{self.input.resolve()}')\n" + \
         "video.set_output()"
 
         with open('get_media_info.py', 'w') as fl:
@@ -319,7 +319,7 @@ class Autoencoder:
 
         script = "import vapoursynth as vs\n" + \
         "core = vs.get_core()\n" + \
-        f"video = core.ffms2.Source('{self.input.resolve()}')\n" + \
+        f"video = core.ffms2.Source(r'{self.input.resolve()}')\n" + \
         self.crop + '\n'\
         "video.set_output()"
 
@@ -365,7 +365,8 @@ class Autoencoder:
             [f"+eq(n\\,{x})" for x in screenshot_places_source[1:]]) + "',"
 
         Path("Screenshots").mkdir(parents=True, exist_ok=True)
-        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + select_source + f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png "
+        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " 
+        + select_source + f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png "
         #print(cmd_source)
 
         Popen(shlex.split(cmd_source)).wait()
@@ -374,7 +375,8 @@ class Autoencoder:
         #print(screenshot_places_encoded)
         select_encoded = f"'select=eq(n\\,{screenshot_places_encoded[0]})" + ''.join(
             [f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:-1]]) + "',"
-        cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.output} -an -sn -dn -filter_complex " + select_encoded + f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
+        cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.output} -an -sn -dn -filter_complex " + 
+        select_encoded + f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
         #print(cmd_encode)
         Popen(shlex.split(cmd_encode)).wait()
         print(":: Screenshot made")
