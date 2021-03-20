@@ -15,9 +15,6 @@ import shlex
 import numpy as np
 pp = PrettyPrinter(indent=2).pprint
 
-## TODO: make it encode at multiple resolutions
-## TODO: queue
-
 
 class Autoencoder:
     def __init__(self):
