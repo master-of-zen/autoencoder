@@ -13,6 +13,7 @@ from pprint import PrettyPrinter
 import os
 import shlex
 import numpy as np
+
 pp = PrettyPrinter(indent=2).pprint
 
 
@@ -362,8 +363,8 @@ class Autoencoder:
             [f"+eq(n\\,{x})" for x in screenshot_places_source[1:]]) + "',"
 
         Path("Screenshots").mkdir(parents=True, exist_ok=True)
-        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " 
-        + select_source + f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png "
+        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex "
+        +select_source + f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png "
         #print(cmd_source)
 
         Popen(shlex.split(cmd_source)).wait()
@@ -372,7 +373,7 @@ class Autoencoder:
         #print(screenshot_places_encoded)
         select_encoded = f"'select=eq(n\\,{screenshot_places_encoded[0]})" + ''.join(
             [f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:-1]]) + "',"
-        cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.output} -an -sn -dn -filter_complex " + 
+        cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.output} -an -sn -dn -filter_complex " + \
         select_encoded + f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
         #print(cmd_encode)
         Popen(shlex.split(cmd_encode)).wait()
