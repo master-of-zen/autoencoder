@@ -218,24 +218,39 @@ class Autoencoder:
         # Audio
         to_merge_audio = []
         for x in audio:
-            title = x["Title"]
             track = x["StreamOrder"]
-            language = x['Language']
-            to_merge_audio.extend([
-                '--language', f'0:{language}', '--track-name', f'0:"{title}"',
-                f'Temp/Audio/{track}.mkv'
-            ])
+
+            # Handle title
+            maybe_title = x.get("Title", '')
+            if maybe_title:
+                to_merge_audio.extend([f'--track-name', f'0:"{maybe_title}"'])
+
+            # Handle language
+            maybe_language = x.get('Language', '')
+            if maybe_language:
+                to_merge_audio.extend(['--language', f'0:{maybe_language}'])
+
+            to_merge_audio.extend([f'Temp/Audio/{track}.mkv'])
 
         # Subtitles
         to_merge_subtitles = []
         for x in subtitles:
-            title = x["Title"]
             track = x["StreamOrder"]
-            language = x['Language']
-            to_merge_subtitles.extend([
-                '--language', f'0:{language}', '--track-name', f'0:{title}',
-                f'Temp/Subtitles/{track}.srt'
-            ])
+
+            # Handle title
+            maybe_title = x.get("Title", '')
+            if maybe_title:
+                to_merge_subtitles.extend(
+                    [f'--track-name', f'0:"{maybe_title}"'])
+
+            # Handle language
+            maybe_language = x.get('Language', '')
+            if maybe_language:
+                to_merge_subtitles.extend(
+                    ['--language', f'0:{maybe_language}'])
+
+            to_merge_subtitles.extend([f'Temp/Subtitles/{track}.srt'])
+
         to_merge = to_merge_audio + to_merge_subtitles
 
         cmd = [
@@ -371,8 +386,6 @@ class Autoencoder:
         # print(cmd)
         Popen(cmd).wait()
 
-        #print(screenshot_places_source)
-        #print(screenshot_places_encoded)
         select_encoded = f"'select=eq(n\\,{screenshot_places_encoded[0]})" + ''.join(
             [f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:]]) + "',"
         cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.output} -an -sn -dn -filter_complex " + \
