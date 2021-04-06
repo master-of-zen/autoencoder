@@ -363,11 +363,13 @@ class Autoencoder:
             [f"+eq(n\\,{x})" for x in screenshot_places_source[1:]]) + "',"
 
         Path("Screenshots").mkdir(parents=True, exist_ok=True)
-        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex "
-        +select_source + f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png "
-        #print(cmd_source)
+        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " \
+        f"{select_source}"  f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png"
 
-        Popen(shlex.split(cmd_source)).wait()
+        #print(cmd_source)
+        cmd = shlex.split(cmd_source)
+        # print(cmd)
+        Popen(cmd).wait()
 
         #print(screenshot_places_source)
         #print(screenshot_places_encoded)
@@ -375,8 +377,11 @@ class Autoencoder:
             [f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:]]) + "',"
         cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.output} -an -sn -dn -filter_complex " + \
         select_encoded + f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
+
         #print(cmd_encode)
-        Popen(shlex.split(cmd_encode)).wait()
+        cmd_encoded = shlex.split(cmd_encode)
+        # print(cmd_encoded)
+        Popen(cmd_encoded).wait()
         print(":: Screenshot made")
 
     # def encode_queue(self):
