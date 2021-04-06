@@ -372,7 +372,7 @@ class Autoencoder:
         #print(screenshot_places_source)
         #print(screenshot_places_encoded)
         select_encoded = f"'select=eq(n\\,{screenshot_places_encoded[0]})" + ''.join(
-            [f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:-1]]) + "',"
+            [f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:]]) + "',"
         cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.output} -an -sn -dn -filter_complex " + \
         select_encoded + f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
         #print(cmd_encode)
