@@ -126,11 +126,10 @@ class Autoencoder:
             print(f"Video {self.input.resolve()} is not reachable")
             sys.exit()
 
-
         script = "import vapoursynth as vs\n" + \
-        "core = vs.get_core()\n" + \
-        f"video = core.ffms2.Source(r'{self.input.resolve()}')\n" + \
-        "video.set_output()"
+            "core = vs.get_core()\n" + \
+            f"video = core.ffms2.Source(r'{self.input.resolve()}')\n" + \
+            "video.set_output()"
 
         with open('get_media_info.py', 'w') as fl:
             fl.write(script)
@@ -173,13 +172,13 @@ class Autoencoder:
 
         Path("Temp/Subtitles").mkdir(parents=True, exist_ok=True)
 
-        #pp(self.tracks)
+        # pp(self.tracks)
         subtitles = [x for x in self.tracks if x['@type'] == "Text"]
 
         print(':: Extracting Subtitles')
 
         for x in subtitles:
-            #print(x)
+            # print(x)
             track = f'Temp/Subtitles/{x["StreamOrder"]}.srt'
             self.audio_tracks.append(track)
             cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split(
@@ -207,7 +206,7 @@ class Autoencoder:
 
         # merge = [f'{x} --track_name {}' for ]
 
-        #pp(self.tracks[1])
+        # pp(self.tracks[1])
 
         audio = [x for x in self.tracks if x['@type'] == "Audio"]
         subtitles = [x for x in self.tracks if x['@type'] == "Text"]
@@ -273,14 +272,18 @@ class Autoencoder:
 
         # Making source referense screenshot
         Path("Temp/Sync").mkdir(parents=True, exist_ok=True)
-        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + "'select=eq(n\\,1710)'," + f"{self.ffmpeg_crop} -frames:v 1 Temp/Sync/ref.png "
-        #print(cmd_source)
+        cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " + \
+            "'select=eq(n\\,1710)'," + \
+            f"{self.ffmpeg_crop} -frames:v 1 Temp/Sync/ref.png "
+        # print(cmd_source)
 
         Popen(shlex.split(cmd_source)).wait()
 
         # Making encoded screenshot
-        cmd_enc = f"ffmpeg -y -hide_banner -loglevel warning -i Temp/encoded.mkv -an -sn -dn -filter_complex " + "'select=between(n\\,1705\\,1715)',setpts=PTS-STARTPTS," + f"{self.ffmpeg_crop}  Temp/Sync/%03d.png "
-        #print(cmd_enc)
+        cmd_enc = f"ffmpeg -y -hide_banner -loglevel warning -i Temp/encoded.mkv -an -sn -dn -filter_complex " + \
+            "'select=between(n\\,1705\\,1715)',setpts=PTS-STARTPTS," + \
+            f"{self.ffmpeg_crop}  Temp/Sync/%03d.png "
+        # print(cmd_enc)
         Popen(shlex.split(cmd_enc)).wait()
         #print(":: Encoded screenshots made")
 
@@ -292,11 +295,11 @@ class Autoencoder:
         flist = []
         for p in Path('Temp/Sync').iterdir():
             if p.is_file() and 'ref' not in p.name:
-                #print(p)
+                # print(p)
                 script = f"ffmpeg -hide_banner -i {p}  -i Temp/Sync/ref.png -filter_complex psnr -f null -"
                 r = subprocess.run(shlex.split(script), capture_output=True)
                 output = r.stderr.decode()
-                #print(output)
+                # print(output)
                 if 'inf' in output:
                     score = 1000.0
                 else:
@@ -331,10 +334,10 @@ class Autoencoder:
         p2pformat = f'x264 --log-level error  --fps {self.fps} --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 --crf 20 --deblock {deblock}'
 
         script = "import vapoursynth as vs\n" + \
-        "core = vs.get_core()\n" + \
-        f"video = core.ffms2.Source(r'{self.input.resolve()}')\n" + \
-        self.crop + '\n'\
-        "video.set_output()"
+            "core = vs.get_core()\n" + \
+            f"video = core.ffms2.Source(r'{self.input.resolve()}')\n" + \
+            self.crop + '\n'\
+            "video.set_output()"
 
         settings_file = Path('settings.py')
         with open(settings_file, 'w') as w:
@@ -379,9 +382,9 @@ class Autoencoder:
 
         Path("Screenshots").mkdir(parents=True, exist_ok=True)
         cmd_source = f"ffmpeg -y -loglevel warning -hide_banner -i {self.input} -an -sn -dn -filter_complex " \
-        f"{select_source}"  f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png"
+            f"{select_source}"  f"{self.ffmpeg_crop} -vsync 0 Screenshots/source_%d.png"
 
-        #print(cmd_source)
+        # print(cmd_source)
         cmd = shlex.split(cmd_source)
         # print(cmd)
         Popen(cmd).wait()
@@ -389,9 +392,10 @@ class Autoencoder:
         select_encoded = f"'select=eq(n\\,{screenshot_places_encoded[0]})" + ''.join(
             [f"+eq(n\\,{x})" for x in screenshot_places_encoded[1:]]) + "',"
         cmd_encode = f"ffmpeg -y -loglevel warning -hide_banner -i {self.output} -an -sn -dn -filter_complex " + \
-        select_encoded + f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
+            select_encoded + \
+            f"{self.ffmpeg_crop} -vsync 0 Screenshots/encoded_%d.png "
 
-        #print(cmd_encode)
+        # print(cmd_encode)
         cmd_encoded = shlex.split(cmd_encode)
         # print(cmd_encoded)
         Popen(cmd_encoded).wait()
@@ -403,13 +407,13 @@ class Autoencoder:
 if __name__ == "__main__":
     encoder = Autoencoder()
     # Check initial requirements
-    encoder.check_executables()
     encoder.argparsing()
+    encoder.check_executables()
     encoder.get_media_info()
     encoder.auto_crop()
     encoder.get_tracks_info()
     encoder.extract()
-    #encdoer.encode_queue()
+    # encdoer.encode_queue()
     encoder.encode()
     encoder.merge()
     encoder.detect_desync()
