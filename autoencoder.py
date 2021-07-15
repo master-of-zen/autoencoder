@@ -12,7 +12,31 @@ import json
 from pprint import PrettyPrinter
 import os
 import shlex
+import pip
+
+try:
+    import argparse
+except ImportError:
+    print("Argparse not installed, installing..")
+    pip.main(['install', '--user', 'argparse'])
+    import argparse
+
+
+try:
 import numpy as np
+except ImportError:
+    print("Numpy not installed, installing..")
+    pip.main(['install', '--user', 'numpy'])
+    import numpy as np
+
+
+try:
+    import vapoursynth as vs
+except ImportError:
+    print("Vapoursynth not installed, installing..")
+    pip.main(['install', '--user', 'vapoursynth'])
+    import vapoursynth as vs
+
 
 pp = PrettyPrinter(indent=2).pprint
 
