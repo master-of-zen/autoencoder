@@ -58,6 +58,7 @@ class Autoencoder:
         self.tracks_info = None
         self.audio_tracks_names = []
         self.resolutions = None
+        self.target_rate = None
 
     def argparsing(self):
         """
@@ -68,7 +69,8 @@ class Autoencoder:
         io_group.add_argument(
             "--input", "-i", type=Path, required=True, help="Input File/Folder"
         )
-        io_group.add_argument("--output", "-o", type=Path, help="Output file name")
+        io_group.add_argument("--output", "-o", type=Path,
+                              help="Output file name")
         io_group.add_argument(
             "--screenshots",
             "-s",
@@ -80,6 +82,9 @@ class Autoencoder:
         io_group.add_argument(
             "--resolution", "-r", type=str, nargs="+", help="resolutions to encode in"
         )
+        io_group.add_argument("--target_rate", type=int,
+                              help="value of Kbps to target")
+
         self.args = vars(parser.parse_args())
         self.input: Path = self.args["input"]
         if self.input.is_dir():
@@ -94,6 +99,9 @@ class Autoencoder:
         else:
             self.output = Path(self.args["input"]).with_suffix(".mkv")
 
+        if self.args["target_rate"]:
+            self.target_rate = self.args["target_rate"]
+
     def check_executables(self):
         """Checking is all required executables reachable"""
 
@@ -101,6 +109,9 @@ class Autoencoder:
             print("No ffmpeg")
             sys.exit()
 
+        if not find_executable("mkvextract"):
+            print("Can't find mkvextract")
+            sys.exit()
         if not find_executable("vspipe"):
             print("Can't find vspipe")
             sys.exit()
