@@ -196,7 +196,8 @@ class Autoencoder:
         for x in audio:
             track = f'Temp/Audio/{x["StreamOrder"]}.mkv'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split()
+            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split(
+            )
             Popen(cmd).wait()
 
         print(":: Audio Extracted")
@@ -212,7 +213,8 @@ class Autoencoder:
             # print(x)
             track = f'Temp/Subtitles/{x["StreamOrder"]}.srt'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split()
+            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split(
+            )
             Popen(cmd).wait()
 
         print(":: Subtitles Extracted")
@@ -269,12 +271,14 @@ class Autoencoder:
             # Handle title
             maybe_title = x.get("Title", "")
             if maybe_title:
-                to_merge_subtitles.extend([f"--track-name", f'0:"{maybe_title}"'])
+                to_merge_subtitles.extend(
+                    [f"--track-name", f'0:"{maybe_title}"'])
 
             # Handle language
             maybe_language = x.get("Language", "")
             if maybe_language:
-                to_merge_subtitles.extend(["--language", f"0:{maybe_language}"])
+                to_merge_subtitles.extend(
+                    ["--language", f"0:{maybe_language}"])
 
             to_merge_subtitles.extend([f"Temp/Subtitles/{track}.srt"])
 
@@ -357,13 +361,11 @@ class Autoencoder:
         elif self.w >= 480:
             ref = 16
 
-        deblock = "-1:-1:-1"
-
         # Test
         """
         p2pformat = f'x264 --log-level error  --fps {self.fps} --preset superfast --demuxer y4m --output Temp/encoded.mkv - --crf 20 '
         """
-        p2pformat = f"x264 --log-level error  --fps {self.fps} --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 --crf 20 --deblock {deblock}"
+        p2pformat = f"x264 --log-level error  --fps {self.fps} --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 --crf 20 --deblock -1:-1:-1"
 
         script = (
             "import vapoursynth as vs\n"
@@ -381,7 +383,8 @@ class Autoencoder:
         vs_pipe = f"vspipe --y4m {settings_file.resolve()} - "
 
         print(":: Encoding..\r")
-        pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE,
+                   stderr=subprocess.PIPE)
 
         Popen(p2pformat.split(), stdin=pr.stdout).wait()
 
