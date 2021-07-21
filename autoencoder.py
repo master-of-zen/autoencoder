@@ -4,7 +4,6 @@ from distutils.spawn import find_executable
 import sys
 import re
 import vapoursynth as vs
-import argparse
 from pathlib import Path
 from subprocess import Popen
 import subprocess
@@ -23,7 +22,7 @@ except ImportError:
 
 
 try:
-import numpy as np
+    import numpy as np
 except ImportError:
     print("Numpy not installed, installing..")
     pip.main(['install', '--user', 'numpy'])
@@ -447,7 +446,57 @@ class Autoencoder:
         Popen(cmd_encoded).wait()
         print(":: Screenshot made")
 
-    # def encode_queue(self):
+    def match_rate(self):
+        """Encoding a minute long segments a couple of times to find reasonable crf for encoding to match bitrates"""
+
+        if self.w >= 1080:
+            ref = 4
+        elif self.w >= 720:
+            ref = 9
+        elif self.w >= 576:
+            ref = 12
+        elif self.w >= 480:
+            ref = 16
+
+        probe_path = Path("Temp/probe.mkv")
+
+        try_settings = f"x264 --log-level error  --fps {self.fps} --preset slow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/probe.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16  --deblock -1:-1:-1"
+
+        default_crf = "--crf 20"
+        settings_file = Path("settings.py")
+        vs_pipe = f"vspipe --y4m -s 2880 -e 4320 {settings_file.resolve()} - "
+
+        crf = 20
+        probe_crfs = []  # (crf, rate)
+
+        print("::Matching rate..")
+        for probe_num in range(1, 5):
+            print(f":: Encoding.. Probe: {probe_num}\r")
+
+            if probe_num == 1:
+                settings = try_settings + " --crf 20"
+            else:
+                setting = try_settings + f" --crf {crf} "
+
+            pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
+
+            Popen(settings.split(), stdin=pr.stdout).wait()
+
+            cmd = f"mediainfo --Output=JSON {self.input.resolve()}"
+            r = subprocess.run(cmd.split(), capture_output=True)
+
+            if len(r.stderr.decode()) > 0:
+                print("Error in getting track info")
+                print(r.stderr.decode())
+                sys.exit()
+
+            bitrate = int(json.loads(r.stdout.decode())[
+                          "media"]["track"][1]["BitRate"]) // 1000
+            print(f"CRF: {crf} BitRate: {bitrate} Kbps")
+            probe_crfs.append((crf, bitrate))
+            print(probe_crfs)
+            sys.exit()
 
 
 if __name__ == "__main__":
@@ -460,6 +509,8 @@ if __name__ == "__main__":
     encoder.get_tracks_info()
     encoder.extract()
     # encdoer.encode_queue()
+    if encoder.target_rate:
+        encoder.match_rate()
     encoder.encode()
     encoder.merge()
     encoder.detect_desync()
