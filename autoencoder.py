@@ -18,14 +18,14 @@ try:
     import argparse
 except ImportError:
     print("Argparse not installed, installing..")
-    pip.main(['install', '--user', 'argparse'])
+    pip.main(["install", "--user", "argparse"])
     import argparse
 
 try:
     from scipy import interpolate
 except ImportError:
     print("Scipy not installed, installing..")
-    pip.main(['install', '--user', 'scipy'])
+    pip.main(["install", "--user", "scipy"])
     from scipy import interpolate
 
 
@@ -33,7 +33,7 @@ try:
     import numpy as np
 except ImportError:
     print("Numpy not installed, installing..")
-    pip.main(['install', '--user', 'numpy'])
+    pip.main(["install", "--user", "numpy"])
     import numpy as np
 
 
@@ -41,7 +41,7 @@ try:
     import vapoursynth as vs
 except ImportError:
     print("Vapoursynth not installed, installing..")
-    pip.main(['install', '--user', 'vapoursynth'])
+    pip.main(["install", "--user", "vapoursynth"])
     import vapoursynth as vs
 
 
@@ -78,8 +78,7 @@ class Autoencoder:
         io_group.add_argument(
             "--input", "-i", type=Path, required=True, help="Input File/Folder"
         )
-        io_group.add_argument("--output", "-o", type=Path,
-                              help="Output file name")
+        io_group.add_argument("--output", "-o", type=Path, help="Output file name")
         io_group.add_argument(
             "--screenshots",
             "-s",
@@ -91,10 +90,8 @@ class Autoencoder:
         io_group.add_argument(
             "--resolution", "-r", type=str, nargs="+", help="resolutions to encode in"
         )
-        io_group.add_argument("--target_rate", type=int,
-                              help="value of Kbps to target")
-        io_group.add_argument("--probe_frames", type=int,
-                              help="Probe size in frames")
+        io_group.add_argument("--target_rate", type=int, help="value of Kbps to target")
+        io_group.add_argument("--probe_frames", type=int, help="Probe size in frames")
         self.args = vars(parser.parse_args())
         self.input: Path = self.args["input"]
         if self.input.is_dir():
@@ -212,8 +209,7 @@ class Autoencoder:
         for x in audio:
             track = f'Temp/Audio/{x["StreamOrder"]}.mkv'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split(
-            )
+            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split()
             Popen(cmd).wait()
 
         print(":: Audio Extracted")
@@ -229,8 +225,7 @@ class Autoencoder:
             # print(x)
             track = f'Temp/Subtitles/{x["StreamOrder"]}.srt'
             self.audio_tracks.append(track)
-            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split(
-            )
+            cmd = f'mkvextract -q {Path(self.input).resolve()} tracks {x["StreamOrder"]}:{track}'.split()
             Popen(cmd).wait()
 
         print(":: Subtitles Extracted")
@@ -287,14 +282,12 @@ class Autoencoder:
             # Handle title
             maybe_title = x.get("Title", "")
             if maybe_title:
-                to_merge_subtitles.extend(
-                    [f"--track-name", f'0:"{maybe_title}"'])
+                to_merge_subtitles.extend([f"--track-name", f'0:"{maybe_title}"'])
 
             # Handle language
             maybe_language = x.get("Language", "")
             if maybe_language:
-                to_merge_subtitles.extend(
-                    ["--language", f"0:{maybe_language}"])
+                to_merge_subtitles.extend(["--language", f"0:{maybe_language}"])
 
             to_merge_subtitles.extend([f"Temp/Subtitles/{track}.srt"])
 
@@ -407,8 +400,7 @@ class Autoencoder:
         vs_pipe = f"vspipe --y4m {settings_file.resolve()} - "
 
         print(":: Encoding..\r")
-        pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE,
-                   stderr=subprocess.PIPE)
+        pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         Popen(p2pformat.split(), stdin=pr.stdout).wait()
 
@@ -500,8 +492,7 @@ class Autoencoder:
             print(f":: Encoding.. Probe: {probe_num}\r")
 
             settings = try_settings + f" --crf {crf} "
-            pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE)
+            pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             Popen(settings.split(), stdin=pr.stdout).wait()
 
@@ -513,8 +504,10 @@ class Autoencoder:
                 print(r.stderr.decode())
                 sys.exit()
 
-            bitrate = int(json.loads(r.stdout.decode())[
-                          "media"]["track"][1]["BitRate"]) // 1000
+            bitrate = (
+                int(json.loads(r.stdout.decode())["media"]["track"][1]["BitRate"])
+                // 1000
+            )
 
             print(f"CRF: {crf} BitRate: {bitrate} Kbps")
             probe_crfs.append((crf, bitrate))
@@ -531,7 +524,11 @@ class Autoencoder:
                 else:
                     crf -= 5
 
-            elif min([x[1] for x in probe_crfs]) < self.target_rate < max([x[1] for x in probe_crfs]):
+            elif (
+                min([x[1] for x in probe_crfs])
+                < self.target_rate
+                < max([x[1] for x in probe_crfs])
+            ):
                 # Interpolate
                 x = [x[0] for x in sorted(probe_crfs)]
                 y = [x[1] for x in sorted(probe_crfs)]
