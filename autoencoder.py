@@ -9,6 +9,7 @@ from subprocess import Popen
 import subprocess
 import json
 from pprint import PrettyPrinter
+
 import os
 import shlex
 import pip
@@ -19,6 +20,13 @@ except ImportError:
     print("Argparse not installed, installing..")
     pip.main(['install', '--user', 'argparse'])
     import argparse
+
+try:
+    from scipy import interpolate
+except ImportError:
+    print("Scipy not installed, installing..")
+    pip.main(['install', '--user', 'scipy'])
+    from scipy import interpolate
 
 
 try:
@@ -58,6 +66,8 @@ class Autoencoder:
         self.audio_tracks_names = []
         self.resolutions = None
         self.target_rate = None
+        self.probe_frames = None
+        self.match_crf = None
 
     def argparsing(self):
         """
@@ -83,7 +93,8 @@ class Autoencoder:
         )
         io_group.add_argument("--target_rate", type=int,
                               help="value of Kbps to target")
-
+        io_group.add_argument("--probe_frames", type=int,
+                              help="Probe size in frames")
         self.args = vars(parser.parse_args())
         self.input: Path = self.args["input"]
         if self.input.is_dir():
@@ -100,6 +111,12 @@ class Autoencoder:
 
         if self.args["target_rate"]:
             self.target_rate = self.args["target_rate"]
+
+        if self.args["probe_frames"]:
+            assert self.args["probe_frames"] > 1
+            self.probe_frames = self.args["probe_frames"]
+        else:
+            self.probe_frames = 500
 
     def check_executables(self):
         """Checking is all required executables reachable"""
@@ -298,6 +315,9 @@ class Autoencoder:
         Popen(cmd).wait()
 
     def detect_desync(self):
+        """
+        Detects desync beetween the original and encoded
+        """
 
         print(":: Detecting desync")
 
@@ -360,11 +380,16 @@ class Autoencoder:
         elif self.w >= 480:
             ref = 16
 
+        if self.match_crf:
+            crf = self.match_crf
+        else:
+            crf = 20
+
         # Test
         """
         p2pformat = f'x264 --log-level error  --fps {self.fps} --preset superfast --demuxer y4m --output Temp/encoded.mkv - --crf 20 '
         """
-        p2pformat = f"x264 --log-level error  --fps {self.fps} --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 --crf 20 --deblock -1:-1:-1"
+        p2pformat = f"x264 --log-level error  --fps {self.fps} --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/encoded.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16 --crf {crf} --deblock -1:-1:-1"
 
         script = (
             "import vapoursynth as vs\n"
@@ -460,30 +485,27 @@ class Autoencoder:
 
         probe_path = Path("Temp/probe.mkv")
 
-        try_settings = f"x264 --log-level error  --fps {self.fps} --preset slow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/probe.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16  --deblock -1:-1:-1"
+        try_settings = f"x264 --log-level error  --fps {self.fps} --preset veryslow --demuxer y4m --level 4.1 --b-adapt 2 --vbv-bufsize 78125 --vbv-maxrate 62500 --rc-lookahead 250  --me tesa --direct auto --subme 11 --trellis 2 --no-dct-decimate --no-fast-pskip --output Temp/probe.mkv - --ref {ref} --min-keyint 24 --aq-mode 2  --qcomp 0.62 --psy-rd 30 --bframes 16  --deblock -1:-1:-1"
 
         default_crf = "--crf 20"
         settings_file = Path("settings.py")
-        vs_pipe = f"vspipe --y4m -s 2880 -e 4320 {settings_file.resolve()} - "
+        vs_pipe = f"vspipe --y4m -s 2880 -e {2880 + self.probe_frames} {settings_file.resolve()} - "
 
         crf = 20
         probe_crfs = []  # (crf, rate)
 
-        print("::Matching rate..")
+        print(":: Matching rate..")
+
         for probe_num in range(1, 5):
             print(f":: Encoding.. Probe: {probe_num}\r")
 
-            if probe_num == 1:
-                settings = try_settings + " --crf 20"
-            else:
-                setting = try_settings + f" --crf {crf} "
-
+            settings = try_settings + f" --crf {crf} "
             pr = Popen(vs_pipe.split(), stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
 
             Popen(settings.split(), stdin=pr.stdout).wait()
 
-            cmd = f"mediainfo --Output=JSON {self.input.resolve()}"
+            cmd = f"mediainfo --Output=JSON {probe_path}"
             r = subprocess.run(cmd.split(), capture_output=True)
 
             if len(r.stderr.decode()) > 0:
@@ -493,10 +515,44 @@ class Autoencoder:
 
             bitrate = int(json.loads(r.stdout.decode())[
                           "media"]["track"][1]["BitRate"]) // 1000
+
             print(f"CRF: {crf} BitRate: {bitrate} Kbps")
             probe_crfs.append((crf, bitrate))
-            print(probe_crfs)
-            sys.exit()
+
+            # Checking rate
+            if abs(bitrate - self.target_rate) < (self.target_rate // 10):
+                print(f"Found crf: {crf}")
+                self.match_crf = crf
+                return
+
+            if probe_num == 1:
+                if bitrate > self.target_rate:
+                    crf += 5
+                else:
+                    crf -= 5
+
+            elif min([x[1] for x in probe_crfs]) < self.target_rate < max([x[1] for x in probe_crfs]):
+                # Interpolate
+                x = [x[0] for x in sorted(probe_crfs)]
+                y = [x[1] for x in sorted(probe_crfs)]
+
+                f = interpolate.interp1d(x, y, kind="linear")
+                xnew = np.linspace(min(x), max(x), max(x) - min(x))
+                tl = list(zip(xnew, f(xnew)))
+                tpls = min(tl, key=lambda l: abs(l[1] - self.target_rate))
+                crf = round(tpls[0], 1)
+
+            else:
+                # If we still can't match rate, extend the fork
+                if self.target_rate > max([x[1] for x in probe_crfs]):
+                    print(f"Print extending crf search: {crf} -> {crf - 5}")
+                    crf -= 5
+                elif self.target_rate < min([x[1] for x in probe_crfs]):
+                    print(f"Print extending crf search: {crf} -> {crf + 5}")
+                    crf += 5
+
+        print(f"Closest CRF to match bitrate: {crf}")
+        self.match_crf = crf
 
 
 if __name__ == "__main__":
